@@ -65,6 +65,7 @@ func main() {
 	carBrand := flag.String("brand", "", "Brand of the car you want to scrape. Have to be combined with either \"-model\" and/or \"-list\". Whitespaces have to be escaped, brandnames are case sensetive.")
 	carModel := flag.String("model", "", "Model of the car brand you are looking for. Have to be combined with either \"-brand\" or \"-list\". Whitespaces have to be escaped, modelnames are case sensetive.")
 	list := flag.Bool("list", false, "List available brands / models at blocket.se")
+	outdir := flag.String("outdir", "", "Set output directory for csv files")
 	logStdOut := flag.Bool("output", false, "Log output as JSON to stdout")
 	flag.Usage = func() {
 		fmt.Fprintf(flag.CommandLine.Output(), "This utility retrieves car ads from www.blocket.se and outputs to either stdout och csvfile.\n\n")
@@ -134,10 +135,13 @@ func main() {
 
 	ads := getListedAds(token, selectedModel)
 
-	if *logStdOut && !*list {
+	if *logStdOut && !*list && *outdir == "" {
 		fmt.Println(PrettyPrint(ads))
 	} else if !*list {
-		err = outputToCSV(selectedBrandName, selectedModelName, ads)
+		if *outdir == "" {
+			*outdir, _ = os.Getwd()
+		}
+		err = outputToCSV(selectedBrandName, selectedModelName, ads, *outdir)
 		if err != nil {
 			fmt.Printf("ERROR: %s", err)
 		}
@@ -260,16 +264,16 @@ func getListedAds(token, modelSearchParams string) Ad {
 }
 
 // Output data to CSV-file
-func outputToCSV(brandName string, modelName string, ads Ad) error {
+func outputToCSV(brandName string, modelName string, ads Ad, outdir string) error {
 	todaysDate := time.Now()
 	filename := fmt.Sprintf("%s_%s_%d-%02d-%02d.csv", brandName, modelName, todaysDate.Year(), todaysDate.Month(), todaysDate.Day())
 
 	// Create directory data/brand/model if not exists
-	if _, err := os.Stat(filepath.Join("data", brandName, modelName)); os.IsNotExist(err) {
-		os.MkdirAll(filepath.Join("data", brandName, modelName), 0755)
+	if _, err := os.Stat(filepath.Join(outdir, "data", brandName, modelName)); os.IsNotExist(err) {
+		os.MkdirAll(filepath.Join(outdir, "data", brandName, modelName), 0755)
 	}
 
-	csvFile, err := os.Create(filepath.Join("data", brandName, modelName, filename))
+	csvFile, err := os.Create(filepath.Join(outdir, "data", brandName, modelName, filename))
 	if err != nil {
 		return err
 	}
